@@ -439,8 +439,8 @@ export default function EnquiryList() {
                   <img
                     src={NoResultFound}
                     alt="No result found"
-                    height={85}
-                    width={85}
+                    height="85px"
+                    width="85px"
                   />
                   <Text size="3" weight="bold">
                     Sorry! No results found

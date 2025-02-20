@@ -64,7 +64,7 @@ export default function StatusFilterCards({
             >
               <Text
                 as="p"
-                weight="bold"
+                weight="medium"
                 style={{ color: styles.color }}
                 className="mb-2"
               >
