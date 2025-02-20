@@ -1,0 +1,77 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: "Santosi";
+  src: url("./assets/font/Satoshi-Regular.otf") format("opentype");
+}
+
+/* add background color f8fafc in root */
+:root {
+  background-color: #f8fafc;
+}
+
+.scroll-container {
+  overflow-x: auto;
+  scrollbar-width: none; /* For Firefox */
+}
+
+.scroll-container::-webkit-scrollbar {
+  display: none; /* For WebKit browsers */
+}
+
+.radix-themes {
+  --default-font-family: "Santosi", sans-serif;
+  --heading-font-family: "Santosi", sans-serif;
+  --code-font-family: "Santosi", sans-serif;
+  --strong-font-family: "Santosi", sans-serif;
+  --em-font-family: "Santosi", sans-serif;
+  --quote-font-family: "Santosi", sans-serif;
+}
+/* Container for the pagination */
+.pagination {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* Individual page items and navigation buttons */
+.page-item {
+  display: inline-block;
+  margin: 0; /* Remove margin to eliminate gaps */
+}
+
+/* Active page item */
+.page-item.active {
+  font-weight: bold;
+  color: #ffffff; /* Text color for active page */
+  background-color: #007bff; /* Background color for active page */
+  /* Rounded corners for active page */
+  /* Padding for active page */
+}
+
+/* Previous and Next buttons and page items */
+.page-item a {
+  display: block;
+  padding: 5px 10px;
+  text-decoration: none;
+  color: #007bff; /* Text color for non-active pages */
+  border: 1px solid #ddd; /* Border for non-active pages */
+  /* Rounded corners for non-active pages */
+  transition: background-color 0.3s, color 0.3s; /* Smooth transition */
+}
+
+/* Hover effect for page items */
+.page-item a:hover {
+  background-color: #f8f9fa; /* Background color on hover */
+  color: #0056b3; /* Text color on hover */
+}
+
+/* Active page item link */
+.page-item.active a {
+  color: #ffffff; /* Text color for active page */
+  background-color: #007bff; /* Background color for active page */
+  border-color: #007bff; /* Border color for active page */
+}
