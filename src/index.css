@@ -26,6 +26,45 @@
   --strong-font-family: "Santosi", sans-serif;
   --em-font-family: "Santosi", sans-serif;
   --quote-font-family: "Santosi", sans-serif;
+  --list-font-family: "Santosi", sans-serif;
+  --link-font-family: "Santosi", sans-serif;
+  --caption-font-family: "Santosi", sans-serif;
+  --default-font-size: 1rem;
+  --heading-font-size: 1.5rem;
+  --code-font-size: 1rem;
+  --strong-font-size: 1rem;
+  --em-font-size: 1rem;
+  --quote-font-size: 1rem;
+  --list-font-size: 1rem;
+  --link-font-size: 1rem;
+  --caption-font-size: 1rem;
+  --default-line-height: 1.5;
+  --heading-line-height: 1.5;
+  --code-line-height: 1.5;
+  --strong-line-height: 1.5;
+  --em-line-height: 1.5;
+  --quote-line-height: 1.5;
+  --list-line-height: 1.5;
+  --link-line-height: 1.5;
+  --caption-line-height: 1.5;
+
+  --colors-text: #333;
+  --colors-background: #fff;
+  --colors-primary: #007bff;
+  --colors-secondary: #000000;
+  --colors-muted: #6c757d;
+  --colors-accent: #007bff;
+  --colors-success: #28a745;
+  --colors-danger: #dc3545;
+  --colors-warning: #ffc107;
+  --colors-info: #17a2b8;
+  --colors-light: #f8f9fa;
+  --colors-dark: #343a40;
+  --colors-link: #007bff;
+  --colors-link-hover: #0056b3;
+  --colors-border: #dee2e6;
+
+  --font-sans: "Santosi", sans-serif;
 }
 /* Container for the pagination */
 .pagination {

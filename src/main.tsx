@@ -11,7 +11,7 @@ import EnquiryDetail from "./pages/enquiries/EnquiryDetail.tsx";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <Theme>
+    <Theme accentColor="violet">
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<App />} />

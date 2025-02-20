@@ -1,27 +1,25 @@
 import {
-  Badge,
   Box,
-  Card,
-  DataList,
   Flex,
   Button,
   IconButton,
   Text,
   TextField,
-  Separator,
   Checkbox,
   DropdownMenu,
   Dialog,
 } from "@radix-ui/themes";
-import { Check, Download, MapPin, Search, UserPlus, X } from "lucide-react";
+import { Check, Download, Search, UserPlus, X } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback } from "react";
 import apiList from "../../api/api";
-import { formatTimestamp, timeAgo } from "../../utils/Commons";
 import ReactPaginate from "react-paginate";
 import NoResultFound from "@/assets/image/no-result-found.webp";
 import DateFilter from "./DateFilter";
+import EnquiryCard from "@/components/enquiries/EnquiryCard";
+import StatusFilterCards from "@/components/enquiries/StatusFilterCards";
+import EnquirySearchFilters from "../../components/enquiries/EnquirySearchFilters";
 
 // Constants
 const DEFAULT_PAGE_SIZE = 20;
@@ -267,49 +265,12 @@ export default function EnquiryList() {
     [selectedEnquiries]
   );
 
-  // Memoized status filter cards
-  const statusFilterCards = useMemo(
-    () =>
-      statusList &&
-      statusList.map((status) => (
-        <Box minWidth="160px" key={status.status}>
-          <Card
-            className="p-3 shadow-lg"
-            style={{
-              border:
-                selectedStatus === status.status ? "1px solid #B7AEFF" : "none",
-              backgroundColor:
-                selectedStatus === status.status ? "#F3F2FF" : "white",
-            }}
-            onClick={() => {
-              const newParams = new URLSearchParams(searchParams);
-              newParams.set("filter", `SALES_ENQUIRY_STATUS:${status.status}`);
-              newParams.set("pageNumber", DEFAULT_PAGE_NUMBER.toString());
-              setSearchParams(newParams);
-            }}
-          >
-            <Text
-              as="p"
-              weight="medium"
-              style={{
-                color: selectedStatus === status.status ? "#6600FF" : "#000",
-              }}
-            >
-              {status.label}
-            </Text>
-            <Text
-              as="p"
-              weight="bold"
-              style={{
-                color: selectedStatus === status.status ? "#6600FF" : "#000",
-              }}
-            >
-              {status.statusCount}
-            </Text>
-          </Card>
-        </Box>
-      )),
-    [statusList, selectedStatus, searchParams, setSearchParams]
+  // Render status filter cards
+  const renderStatusFilterCards = () => (
+    <StatusFilterCards
+      statusList={statusList}
+      selectedStatus={selectedStatus}
+    />
   );
 
   //create bulk acton component
@@ -436,118 +397,96 @@ export default function EnquiryList() {
   }, []);
 
   return (
-    <div className="background p-4">
-      <div className="container mx-auto">
+    <div className="background">
+      <div className="max-w-7xl mx-auto">
         <header>
-          <Text weight="bold">My Enquiries</Text>
-          <Flex gap="4" wrap="nowrap" className="pt-3 scroll-container">
-            {statusFilterCards}
-          </Flex>
-          {/* Search and Date Picker */}
-          <div className="mt-6">
-            <Flex justify="between">
-              <TextField.Root
-                radius="full"
-                size="3"
-                placeholder="Search by Company Name ... "
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-              >
-                <TextField.Slot side="right" px="1">
-                  <IconButton onClick={handleSearch}>
-                    <Search width="18" height="18" />
-                  </IconButton>
-                </TextField.Slot>
-              </TextField.Root>
-              <DropdownMenu.Root>
-                <DropdownMenu.Trigger>
-                  <Button variant="soft">
-                    Options
-                    <DropdownMenu.TriggerIcon />
-                  </Button>
-                </DropdownMenu.Trigger>
-                <DropdownMenu.Content>
-                  <DateFilter />
-                </DropdownMenu.Content>
-              </DropdownMenu.Root>
-            </Flex>
-            <div className="w-full sm:w-auto flex justify-end mt-3 sm:mt-0">
-              <Button variant="outline" size="2">
-                <Download height="16px" width="16px" /> Download
-              </Button>
-            </div>
-          </div>
-        </header>
-        {/* Select All and Bulk Actions */}
-        <Flex align="center" gap="3" className="mt-6">
-          <Checkbox
-            checked={
-              selectedEnquiries.length === enquiries.length &&
-              enquiries.length > 0
-            }
-            onCheckedChange={handleSelectAll}
-          />
-          <Text>Select All</Text>
-
-          {selectedEnquiries.length > 0 && (
-            <Flex align="start" gap="3">
-              <Text>Selected {selectedEnquiries.length} Enquiries</Text>
-              {renderBulkActions()}
-            </Flex>
-          )}
-        </Flex>
-        {/* Enquiry List */}
-        <div className="space-y-4 mt-6">
-          {enquiries.length === 0 ? (
-            <div className="text-center">
-              <Flex direction="column" gap="4" align="center">
-                <img
-                  src={NoResultFound}
-                  alt="No result found"
-                  height={85}
-                  width={85}
-                />
-                <Text size="3" weight="bold">
-                  Sorry! No results found
-                </Text>
-              </Flex>
-            </div>
-          ) : (
-            enquiries &&
-            enquiries.map((enquiry) => (
-              <EnquiryCard
-                key={enquiry.salesEnquiryId}
-                enquiry={enquiry}
-                selectedStatus={selectedStatus}
-                isSelected={selectedEnquiries.includes(enquiry.salesEnquiryId)}
-                onSelect={() => handleEnquirySelection(enquiry.salesEnquiryId)}
-                onStatusChange={handleStatusChange}
-                onClick={() =>
-                  navigate(`/enquiries/detail/${enquiry.salesEnquiryId}`)
-                }
-              />
-            ))
-          )}
-        </div>
-        {/* Pagination */}
-        {enquiries.length > 0 && (
-          <div className="flex justify-end px-4">
-            <ReactPaginate
-              containerClassName={"pagination flex flex-wrap justify-end"}
-              pageClassName={"page-item"}
-              activeClassName={"active"}
-              onPageChange={handlePageChange}
-              pageCount={totalPages}
-              forcePage={currentPage}
-              breakLabel="..."
-              previousLabel="Previous"
-              nextLabel="Next"
-              previousClassName={"page-item"}
-              nextClassName={"page-item"}
+          <div className="pt-3 flex flex-col">
+            <StatusFilterCards
+              statusList={statusList}
+              selectedStatus={selectedStatus}
+            />
+            <EnquirySearchFilters
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              onSearch={handleSearch}
             />
           </div>
-        )}
+        </header>
+        <section className="p-4">
+          {/* Select All and Bulk Actions */}
+          <Flex align="center" gap="3" className="mt-6">
+            <Checkbox
+              checked={
+                selectedEnquiries.length === enquiries.length &&
+                enquiries.length > 0
+              }
+              onCheckedChange={handleSelectAll}
+            />
+            <Text>Select All</Text>
+
+            {selectedEnquiries.length > 0 && (
+              <Flex align="start" gap="3">
+                <Text>Selected {selectedEnquiries.length} Enquiries</Text>
+                {renderBulkActions()}
+              </Flex>
+            )}
+          </Flex>
+          {/* Enquiry List */}
+          <div className="space-y-4 mt-6">
+            {enquiries.length === 0 ? (
+              <div className="text-center">
+                <Flex direction="column" gap="4" align="center">
+                  <img
+                    src={NoResultFound}
+                    alt="No result found"
+                    height={85}
+                    width={85}
+                  />
+                  <Text size="3" weight="bold">
+                    Sorry! No results found
+                  </Text>
+                </Flex>
+              </div>
+            ) : (
+              enquiries &&
+              enquiries.map((enquiry) => (
+                <EnquiryCard
+                  key={enquiry.salesEnquiryId}
+                  enquiry={enquiry}
+                  selectedStatus={selectedStatus}
+                  isSelected={selectedEnquiries.includes(
+                    enquiry.salesEnquiryId
+                  )}
+                  onSelect={() =>
+                    handleEnquirySelection(enquiry.salesEnquiryId)
+                  }
+                  onStatusChange={handleStatusChange}
+                  onClick={() =>
+                    navigate(`/enquiries/detail/${enquiry.salesEnquiryId}`)
+                  }
+                />
+              ))
+            )}
+          </div>
+          {/* Pagination */}
+          {enquiries.length > 0 && (
+            <div className="flex justify-end px-4">
+              <ReactPaginate
+                containerClassName={"pagination flex flex-wrap justify-end"}
+                pageClassName={"page-item"}
+                activeClassName={"active"}
+                onPageChange={handlePageChange}
+                pageCount={totalPages}
+                forcePage={currentPage}
+                breakLabel="..."
+                previousLabel="Previous"
+                nextLabel="Next"
+                previousClassName={"page-item"}
+                nextClassName={"page-item"}
+              />
+            </div>
+          )}
+        </section>
         <Dialog.Root open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <Dialog.Content>
             <Dialog.Title>
@@ -643,129 +582,3 @@ export default function EnquiryList() {
     </div>
   );
 }
-
-// EnquiryCard Component
-const EnquiryCard = ({
-  enquiry,
-  isSelected,
-  selectedStatus,
-  onSelect,
-  onStatusChange,
-  onClick,
-}: {
-  enquiry: Enquiry;
-  isSelected: boolean;
-  selectedStatus: string;
-  onSelect: () => void;
-  onStatusChange: (id: string, status: string) => void;
-  onClick: () => void;
-}) => (
-  <Card onClick={onClick} className="rounded-lg p-4 mb-4 relative">
-    <Flex direction="column" gap="4">
-      {/* Company Info Section */}
-      <Flex justify="between" align="start" className="mb-2">
-        <Box>
-          <Flex align="center" gap="2" className="mb-2">
-            <Checkbox
-              checked={isSelected}
-              onClick={(e) => {
-                e.stopPropagation();
-                onSelect();
-              }}
-            />
-            <Text as="div" size="3" weight="bold">
-              {enquiry.buyerDto.companyName}
-            </Text>
-          </Flex>
-          <Flex gap="2">
-            <Badge color="orange" radius="full">
-              Status: {enquiry.enquiryStatus}
-            </Badge>
-            <Badge color="orange" radius="full">
-              {timeAgo(enquiry.dateCreated)}
-            </Badge>
-            {enquiry.pocInfo && (
-              <Badge color="orange" radius="full">
-                Assignee: {enquiry.pocInfo.pocName}
-              </Badge>
-            )}
-          </Flex>
-          <Flex align="center" gap="2" className="text-sm mt-2 text-gray-600">
-            <MapPin className="w-4 h-4 mr-1" />
-            <Text>{enquiry.buyerDto.state}</Text>
-          </Flex>
-        </Box>
-      </Flex>
-      {/* Details Section */}
-      <Flex direction="row" gap="6">
-        <DataList.Root orientation="vertical" size="3">
-          <DataList.Item>
-            <DataList.Label minWidth="88px">Exp Delivery Date</DataList.Label>
-            <DataList.Value>
-              {formatTimestamp(enquiry.expDeliveryDate)}
-            </DataList.Value>
-          </DataList.Item>
-        </DataList.Root>
-        <DataList.Root orientation="vertical" size="3">
-          <DataList.Item>
-            <DataList.Label minWidth="88px">Quantity</DataList.Label>
-            <DataList.Value>
-              <ul>
-                {enquiry.lineItemDtoList &&
-                  enquiry.lineItemDtoList.map((item) => (
-                    <li key={item.id}>
-                      {item.quantity} {item.unit}
-                    </li>
-                  ))}
-              </ul>
-            </DataList.Value>
-          </DataList.Item>
-        </DataList.Root>
-        <DataList.Root orientation="vertical" size="3">
-          <DataList.Item>
-            <DataList.Label minWidth="88px">Product</DataList.Label>
-            <DataList.Value>
-              <ul>
-                {enquiry.lineItemDtoList &&
-                  enquiry.lineItemDtoList.map((item) => (
-                    <li key={item.id}>{item.productName}</li>
-                  ))}
-              </ul>
-            </DataList.Value>
-          </DataList.Item>
-        </DataList.Root>
-      </Flex>
-
-      {selectedStatus === "PENDING" && (
-        <>
-          <Separator my="1" size="4" className="hidden md:block" />
-          <div className="w-full grid grid-cols-2 gap-4 px-4 md:absolute md:top-4 md:right-4 md:w-auto md:flex md:flex-row">
-            <Button
-              size="2"
-              onClick={(e) => {
-                e.stopPropagation();
-                onStatusChange(enquiry.salesEnquiryId, "REJECTED");
-              }}
-              variant="outline"
-              className="w-full md:w-[120px]"
-            >
-              <X /> Reject
-            </Button>
-            <Button
-              onClick={(e) => {
-                e.stopPropagation();
-                onStatusChange(enquiry.salesEnquiryId, "ACCEPTED");
-              }}
-              variant="solid"
-              size="2"
-              className="w-full md:w-[120px]"
-            >
-              <Check />
-              Accept
-            </Button>
-          </div>
-        </>
-      )}
-    </Flex>
-  </Card>
-);
