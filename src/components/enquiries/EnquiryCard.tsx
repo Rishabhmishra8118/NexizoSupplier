@@ -15,7 +15,7 @@ import { formatTimestamp, timeAgo } from "../../utils/Commons";
 interface LineItem {
   id: string;
   quantity: number;
-  unit: string;
+  uom: string;
   productName: string;
 }
 
@@ -111,9 +111,7 @@ const EnquiryCard: React.FC<EnquiryCardProps> = ({
             <DataList.Value>
               <ul className="list-none m-0 p-0">
                 {enquiry.lineItemDtoList.map((item) => (
-                  <li key={item.id}>
-                    {item.quantity} {item.unit}
-                  </li>
+                  <li key={item.id}>{item.quantity}</li>
                 ))}
               </ul>
             </DataList.Value>
@@ -125,7 +123,9 @@ const EnquiryCard: React.FC<EnquiryCardProps> = ({
             <DataList.Value>
               <ul className="list-none m-0 p-0">
                 {enquiry.lineItemDtoList.map((item) => (
-                  <li key={item.id}>{item.productName}</li>
+                  <li key={item.id}>
+                    <Text size="2">{item.productName}</Text>
+                  </li>
                 ))}
               </ul>
             </DataList.Value>

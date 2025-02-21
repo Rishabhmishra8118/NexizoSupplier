@@ -16,7 +16,7 @@ import { useEffect, useState, useCallback } from "react";
 import apiList from "../../api/api";
 import ReactPaginate from "react-paginate";
 import NoResultFound from "@/assets/image/no-result-found.webp";
-import DateFilter from "./DateFilter";
+
 import EnquiryCard from "@/components/enquiries/EnquiryCard";
 import StatusFilterCards from "@/components/enquiries/StatusFilterCards";
 import EnquirySearchFilters from "../../components/enquiries/EnquirySearchFilters";
@@ -90,12 +90,70 @@ export default function EnquiryList() {
   const [currentPage, setCurrentPage] = useState<number>(DEFAULT_PAGE_NUMBER);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedEnquiries, setSelectedEnquiries] = useState<string[]>([]);
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedAction, setSelectedAction] = useState<
     "REJECTED" | "ACCEPTED" | "ASSIGNED" | "QUOTED" | "QUOTE_ACCEPTED" | null
   >(null);
+  const [rejectionReason, setRejectionReason] = useState("");
   const [remark, setRemark] = useState("");
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const REJECTION_REASONS = [
+    "Low Turnover",
+    "Price Mismatch",
+    "Not Serviceable",
+    "No Requirement",
+    "Material Not Available",
+    "Irrelevant Industry",
+    "Not Responding",
+    "Payment terms mismatched",
+  ];
+
+  const handleDownloadEnquiries = async (enquiryIds: string[]) => {
+    if (!enquiryIds.length) return;
+
+    try {
+      setIsDownloading(true);
+
+      const organizationId = "714361434540086498";
+      const partnerId = employeeList[0].employeeId;
+
+      if (!organizationId || !partnerId) {
+        throw new Error("Missing required parameters");
+      }
+
+      const data = await apiList.downloadEnquiryReport(
+        organizationId,
+        partnerId,
+        enquiryIds
+      );
+
+      if (!data.success || !data.data) {
+        throw new Error(data.errorMessage || "Failed to get download URL");
+      }
+
+      // Create a hidden anchor and trigger download
+      const a = document.createElement("a");
+      a.style.display = "none";
+      a.href = data.data; // Use the S3 pre-signed URL
+      a.download = "NEXIZO_REPORT.xlsx";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+
+      toast.success("Download started");
+    } catch (error) {
+      console.error("Download failed:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to download enquiries"
+      );
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(
     null
@@ -119,13 +177,24 @@ export default function EnquiryList() {
     try {
       const params = {
         query: searchParams.get("query") || "",
-        filter: searchParams.get("filter") || DEFAULT_FILTER,
+        filter: searchParams.getAll("filter"),
         pageNumber:
           searchParams.get("pageNumber") || DEFAULT_PAGE_NUMBER.toString(),
         pageSize: searchParams.get("pageSize") || DEFAULT_PAGE_SIZE.toString(),
       };
 
-      const data = await apiList.getEnquiries("714361434540086498", params);
+      const queryString = new URLSearchParams();
+      queryString.set("query", params.query);
+      params.filter.forEach((filter: string) =>
+        queryString.append("filter", filter)
+      );
+      queryString.set("pageNumber", params.pageNumber);
+      queryString.set("pageSize", params.pageSize);
+
+      const data = await apiList.getEnquiries(
+        "714361434540086498",
+        queryString
+      );
       setEnquiries(data.data.content);
       setTotalPages(data.data.totalPages);
       setCurrentPage(data.data.pageable.pageNumber);
@@ -212,33 +281,65 @@ export default function EnquiryList() {
     setSearchParams(newParams, { replace: true });
   }, [searchQuery, searchParams, setSearchParams]);
 
-  // Set default parameters and fetch data
+  // Parse date filter from URL
+  const parseDateFilter = useCallback(() => {
+    const filters = searchParams.getAll("filter");
+    const dateFilter = filters.find((f) => f.startsWith("DATE_CREATED:"));
+
+    if (dateFilter) {
+      const [, range] = dateFilter.split(":");
+      const [startTimestamp, endTimestamp] = range.split("|");
+
+      if (startTimestamp && endTimestamp) {
+        const startDate = new Date(parseInt(startTimestamp));
+        const endDate = new Date(parseInt(endTimestamp));
+        setStartDate(startDate);
+        setEndDate(endDate);
+      }
+    }
+  }, [searchParams]);
+
+  // Sync dates from URL when params change
   useEffect(() => {
-    const newParams = new URLSearchParams(searchParams);
+    parseDateFilter();
+  }, [parseDateFilter]);
 
-    if (!searchParams.has("filter")) {
-      newParams.set("filter", DEFAULT_FILTER);
-    }
-    if (!searchParams.has("pageNumber")) {
-      newParams.set("pageNumber", DEFAULT_PAGE_NUMBER.toString());
-    }
-    if (!searchParams.has("pageSize")) {
-      newParams.set("pageSize", DEFAULT_PAGE_SIZE.toString());
+  // Handle date range change
+  const handleDateRangeChange = (start: Date | null, end: Date | null) => {
+    setStartDate(start);
+    setEndDate(end);
+
+    // Get all existing params
+    const newSearchParams = new URLSearchParams(searchParams);
+
+    // Remove any existing date filter
+    const existingFilters = newSearchParams.getAll("filter");
+    newSearchParams.delete("filter");
+
+    // Add back all non-date filters
+    existingFilters
+      .filter((f) => !f.startsWith("DATE_CREATED:"))
+      .forEach((f) => newSearchParams.append("filter", f));
+
+    if (start && end) {
+      // Set start time to beginning of day (00:00:00)
+      const startTime = new Date(start);
+      startTime.setHours(0, 0, 0, 0);
+
+      // Set end time to end of day (23:59:59)
+      const endTime = new Date(end);
+      endTime.setHours(23, 59, 59, 999);
+
+      // Append the date filter as a new filter parameter
+      const dateFilter = `DATE_CREATED:${startTime.getTime()}|${endTime.getTime()}`;
+      newSearchParams.append("filter", dateFilter);
     }
 
-    if (newParams.toString() !== searchParams.toString()) {
-      setSearchParams(newParams, { replace: true });
-    }
+    setSearchParams(newSearchParams);
 
-    if (newParams.get("filter")?.startsWith("SALES_ENQUIRY_STATUS:")) {
-      const status = newParams.get("filter")?.split(":")[1];
-      const query = newParams.get("query") || "";
-      setSelectedStatus(status || "");
-      setSearchQuery(query);
-      fetchEnquiriesData();
-      fetchStatusCounts();
-    }
-  }, [searchParams, setSearchParams, fetchEnquiriesData, fetchStatusCounts]);
+    // Trigger enquiries fetch
+    fetchEnquiriesData();
+  };
 
   // Handle "Select All" checkbox
   const handleSelectAll = useCallback(() => {
@@ -263,14 +364,6 @@ export default function EnquiryList() {
       }
     },
     [selectedEnquiries]
-  );
-
-  // Render status filter cards
-  const renderStatusFilterCards = () => (
-    <StatusFilterCards
-      statusList={statusList}
-      selectedStatus={selectedStatus}
-    />
   );
 
   //create bulk acton component
@@ -396,6 +489,40 @@ export default function EnquiryList() {
     fetchEmployeeList();
   }, []);
 
+  // Set default parameters and fetch data
+  useEffect(() => {
+    const newParams = new URLSearchParams(searchParams);
+
+    if (!searchParams.has("filter")) {
+      newParams.set("filter", DEFAULT_FILTER);
+    }
+    if (!searchParams.has("pageNumber")) {
+      newParams.set("pageNumber", DEFAULT_PAGE_NUMBER.toString());
+    }
+    if (!searchParams.has("pageSize")) {
+      newParams.set("pageSize", DEFAULT_PAGE_SIZE.toString());
+    }
+
+    if (newParams.toString() !== searchParams.toString()) {
+      setSearchParams(newParams, { replace: true });
+    }
+
+    const filters = newParams.getAll("filter");
+    const statusFilter = filters.find((filter) =>
+      filter.startsWith("SALES_ENQUIRY_STATUS:")
+    );
+
+    if (statusFilter) {
+      const status = statusFilter.split(":")[1];
+      const query = newParams.get("query") || "";
+      setSelectedStatus(status || "");
+      setSearchQuery(query);
+      console.log(newParams.toString());
+      fetchEnquiriesData();
+      fetchStatusCounts();
+    }
+  }, [searchParams, setSearchParams, fetchEnquiriesData, fetchStatusCounts]);
+
   return (
     <div className="background">
       <div className="max-w-7xl mx-auto">
@@ -409,26 +536,43 @@ export default function EnquiryList() {
               searchQuery={searchQuery}
               onSearchChange={setSearchQuery}
               onSearch={handleSearch}
+              onDateRangeChange={handleDateRangeChange}
+              startDate={startDate}
+              endDate={endDate}
             />
           </div>
         </header>
         <section className="p-4">
           {/* Select All and Bulk Actions */}
-          <Flex align="center" gap="3" className="mt-6">
-            <Checkbox
-              checked={
-                selectedEnquiries.length === enquiries.length &&
-                enquiries.length > 0
-              }
-              onCheckedChange={handleSelectAll}
-            />
-            <Text>Select All</Text>
+          <Flex align="center" justify="between" className="mt-6">
+            <Flex align="center" gap="3">
+              <Checkbox
+                checked={
+                  selectedEnquiries.length === enquiries.length &&
+                  enquiries.length > 0
+                }
+                onCheckedChange={handleSelectAll}
+              />
+              <Text>Select All</Text>
+
+              {selectedEnquiries.length > 0 && (
+                <Flex align="center" gap="3">
+                  <Text>Selected {selectedEnquiries.length} Enquiries</Text>
+                  {renderBulkActions()}
+                </Flex>
+              )}
+            </Flex>
 
             {selectedEnquiries.length > 0 && (
-              <Flex align="start" gap="3">
-                <Text>Selected {selectedEnquiries.length} Enquiries</Text>
-                {renderBulkActions()}
-              </Flex>
+              <Button
+                variant="outline"
+                className="gap-2 bg-white hover:bg-gray-50"
+                onClick={() => handleDownloadEnquiries(selectedEnquiries)}
+                disabled={isDownloading}
+              >
+                <Download className="w-4 h-4" />
+                {isDownloading ? "Downloading..." : "Download"}
+              </Button>
             )}
           </Flex>
           {/* Enquiry List */}
@@ -525,12 +669,40 @@ export default function EnquiryList() {
               </Box>
             )}
 
-            <TextField.Root
-              mt="2"
-              placeholder="Add a remark (optional)"
-              value={remark}
-              onChange={(e) => setRemark(e.target.value)}
-            />
+            {selectedAction === "REJECTED" ? (
+              <Box width="100%" className="mt-4">
+                <Text as="label" size="2" my="4" weight="bold">
+                  Select Reason *
+                </Text>
+                <div className="mt-2">
+                  <DropdownMenu.Root>
+                    <DropdownMenu.Trigger>
+                      <Button variant="soft" className="w-full justify-between">
+                        {rejectionReason || "Select a reason"}
+                        <DropdownMenu.TriggerIcon />
+                      </Button>
+                    </DropdownMenu.Trigger>
+                    <DropdownMenu.Content>
+                      {REJECTION_REASONS.map((reason) => (
+                        <DropdownMenu.Item
+                          key={reason}
+                          onSelect={() => setRejectionReason(reason)}
+                        >
+                          {reason}
+                        </DropdownMenu.Item>
+                      ))}
+                    </DropdownMenu.Content>
+                  </DropdownMenu.Root>
+                </div>
+              </Box>
+            ) : (
+              <TextField.Root
+                mt="4"
+                placeholder="Add a remark (optional)"
+                value={remark}
+                onChange={(e) => setRemark(e.target.value)}
+              />
+            )}
             <Flex gap="3" justify="end" className="mt-4">
               <Button variant="soft" onClick={() => setIsDialogOpen(false)}>
                 Cancel
@@ -554,11 +726,16 @@ export default function EnquiryList() {
                   }
 
                   if (selectedAction) {
+                    if (selectedAction === "REJECTED" && !rejectionReason) {
+                      toast.error("Please select a rejection reason");
+                      return;
+                    }
+
                     if (selectedAction !== "ASSIGNED") {
                       await handleBulkStatusChange(
                         null,
                         selectedAction,
-                        remark
+                        selectedAction === "REJECTED" ? rejectionReason : remark
                       );
                     } else {
                       await handleBulkStatusChange(
@@ -568,6 +745,7 @@ export default function EnquiryList() {
                       );
                     }
                     setIsDialogOpen(false);
+                    setRejectionReason("");
                     setRemark("");
                     setSelectedEmployee(null);
                   }

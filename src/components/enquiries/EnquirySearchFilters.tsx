@@ -10,6 +10,21 @@ interface EnquirySearchFiltersProps {
   onSearchChange: (value: string) => void;
   onSearch: () => void;
   onDateRangeChange: (startDate: Date | null, endDate: Date | null) => void;
+  startDate: Date | null;
+  endDate: Date | null;
+}
+
+interface QuickFiltersProps {
+  onQuickFilter: (days: number) => void;
+  onMonthFilter: () => void;
+  onPreviousMonth: () => void;
+}
+
+interface DateInputProps
+  extends Omit<React.ComponentProps<typeof DatePicker>, "onChange"> {
+  label: string;
+  isMobile?: boolean;
+  onChange: (date: Date) => void;
 }
 
 export default function EnquirySearchFilters({
@@ -17,27 +32,42 @@ export default function EnquirySearchFilters({
   onSearchChange,
   onSearch,
   onDateRangeChange,
+  startDate,
+  endDate,
 }: EnquirySearchFiltersProps) {
   // Applied dates shown in the button
-  const [appliedStartDate, setAppliedStartDate] = useState<Date | null>(null);
-  const [appliedEndDate, setAppliedEndDate] = useState<Date | null>(null);
-  
+  const [appliedStartDate, setAppliedStartDate] = useState<Date | null>(
+    startDate
+  );
+  const [appliedEndDate, setAppliedEndDate] = useState<Date | null>(endDate);
+
   // Temporary dates used in the modal
-  const [modalStartDate, setModalStartDate] = useState<Date | null>(null);
-  const [modalEndDate, setModalEndDate] = useState<Date | null>(null);
-  
+  const [modalStartDate, setModalStartDate] = useState<Date | null>(startDate);
+  const [modalEndDate, setModalEndDate] = useState<Date | null>(endDate);
+
+  // Sync with parent state when it changes
+  useEffect(() => {
+    setAppliedStartDate(startDate);
+    setAppliedEndDate(endDate);
+    setModalStartDate(startDate);
+    setModalEndDate(endDate);
+  }, [startDate, endDate]);
+
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const datePickerRef = useRef<HTMLDivElement>(null);
 
-  // Handle click outside for desktop view
+  // Handle click outside for desktop view only
   useEffect(() => {
+    const isMobile = window.innerWidth < 640; // sm breakpoint
+    if (isMobile) return; // Don't add click outside handler for mobile
+
     const handleClickOutside = (event: MouseEvent) => {
       // Don't close if clicking inside a date picker popup
       if (
         event.target instanceof Element &&
-        (event.target.closest('.react-datepicker') ||
-         event.target.closest('.react-datepicker-wrapper') ||
-         event.target.closest('.react-datepicker-popper'))
+        (event.target.closest(".react-datepicker") ||
+          event.target.closest(".react-datepicker-wrapper") ||
+          event.target.closest(".react-datepicker-popper"))
       ) {
         return;
       }
@@ -51,11 +81,11 @@ export default function EnquirySearchFilters({
     };
 
     if (isDatePickerOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
     }
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isDatePickerOpen]);
 
@@ -73,25 +103,47 @@ export default function EnquirySearchFilters({
     setModalEndDate(appliedEndDate);
   };
 
-  const handleApply = () => {
-    if (modalStartDate && modalEndDate) {
-      // First update all the states
-      setAppliedStartDate(modalStartDate);
-      setAppliedEndDate(modalEndDate);
-      onDateRangeChange(modalStartDate, modalEndDate);
-      
-      // Then close the modal in the next tick
-      setTimeout(() => {
-        setIsDatePickerOpen(false);
-      }, 0);
+  const handleApply = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!modalStartDate || !modalEndDate) {
+      return;
     }
+
+    // First update the local state
+    setAppliedStartDate(modalStartDate);
+    setAppliedEndDate(modalEndDate);
+
+    // Then close the modal
+    setIsDatePickerOpen(false);
+
+    // Finally trigger the parent callback after a short delay
+    // This ensures the modal closing animation completes first
+    requestAnimationFrame(() => {
+      onDateRangeChange(modalStartDate, modalEndDate);
+    });
   };
 
   const handleQuickFilter = (days: number) => {
     const end = new Date();
     const start = dayjs().subtract(days, "day").toDate();
+
+    // Update modal dates first
     setModalStartDate(start);
     setModalEndDate(end);
+
+    // Update applied dates
+    setAppliedStartDate(start);
+    setAppliedEndDate(end);
+
+    // Close the modal
+    setIsDatePickerOpen(false);
+
+    // Trigger the parent callback after modal closes
+    requestAnimationFrame(() => {
+      onDateRangeChange(start, end);
+    });
   };
 
   const handleMonthFilter = (type: "this" | "previous") => {
@@ -106,14 +158,25 @@ export default function EnquirySearchFilters({
     setModalEndDate(end);
   };
 
-  const handleReset = () => {
+  const handleReset = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
     // Clear both applied and modal dates
     setAppliedStartDate(null);
     setAppliedEndDate(null);
     setModalStartDate(null);
     setModalEndDate(null);
+
+    // Trigger the parent callback
     onDateRangeChange(null, null);
-    setIsDatePickerOpen(false);
+
+    // Close modal after state updates
+    setTimeout(() => {
+      setIsDatePickerOpen(false);
+    }, 0);
   };
 
   const handleOpenDatePicker = () => {
@@ -124,7 +187,7 @@ export default function EnquirySearchFilters({
     <div className="w-full">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         {/* Search Bar */}
-        <div className="p-3 w-full sm:w-[400px] relative">
+        <div className="m-3 w-full sm:w-[400px] relative">
           <div className="flex items-center rounded-full border border-gray-200 bg-white pr-1">
             <input
               className="flex-1 border-none outline-none bg-transparent px-4 py-2 rounded-l-full text-sm placeholder-gray-400"
@@ -145,24 +208,24 @@ export default function EnquirySearchFilters({
 
         {/* Filter Buttons */}
         <div className="flex justify-center sm:justify-end gap-2 sm:gap-3">
-          <Button variant="outline" className="gap-1 text-sm font-medium">
+          <Button variant="outline" className="gap-1 bg-white  font-medium">
             Products <ChevronDown className="w-3 h-3" />
           </Button>
-          <Button variant="outline" className="gap-1 text-sm font-medium">
+          {/* <Button variant="outline" className="gap-1 font-medium">
             Assigned <ChevronDown className="w-3 h-3" />
-          </Button>
+          </Button> */}
           <Button
             variant="outline"
             onClick={handleOpenDatePicker}
-            className={`gap-2 text-sm font-medium min-w-[140px] ${
+            className={`gap-2 font-medium min-w-[140px] ${
               appliedStartDate && appliedEndDate ? "bg-purple-50" : ""
             }`}
           >
             {appliedStartDate && appliedEndDate ? (
               <>
                 <span className="truncate">
-                  {dayjs(appliedStartDate).format("DD MMM")} -{" "}
-                  {dayjs(appliedEndDate).format("DD MMM")}
+                  {dayjs(appliedStartDate).format("DD MMM YYYY")} -{" "}
+                  {dayjs(appliedEndDate).format("DD MMM YYYY")}
                 </span>
                 <X
                   className="w-3.5 h-3.5 text-gray-500 hover:text-gray-700"
@@ -186,12 +249,28 @@ export default function EnquirySearchFilters({
       {isDatePickerOpen && (
         <>
           {/* Mobile Overlay */}
-          <div className="sm:hidden fixed inset-0 bg-black/30 z-[100]">
-            <div className="fixed inset-0 bg-white z-[101] flex flex-col">
+          <div
+            className="sm:hidden fixed inset-0 bg-black/30 z-[9998]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              className="fixed inset-0 bg-white z-[9999] flex flex-col overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <style jsx global>{`
+                body {
+                  overflow: hidden;
+                }
+              `}</style>
               <div className="p-4 border-b border-gray-100 bg-white">
                 <div className="flex items-center justify-between">
                   <button
-                    onClick={() => setIsDatePickerOpen(false)}
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setIsDatePickerOpen(false);
+                    }}
                     className="text-gray-600 flex items-center gap-1"
                   >
                     <X className="w-5 h-5" />
@@ -204,13 +283,15 @@ export default function EnquirySearchFilters({
                 </div>
               </div>
 
-              <div className="flex-1 p-4 overflow-y-auto">
-                <div className="mb-6">
-                  <QuickFilters
-                    onQuickFilter={handleQuickFilter}
-                    onMonthFilter={() => handleMonthFilter("this")}
-                    onPreviousMonth={() => handleMonthFilter("previous")}
-                  />
+              <div className="flex-1 p-4 overflow-y-auto pb-safe">
+                <div className="mb-6 -mx-1">
+                  <div className="overflow-x-auto py-1 px-1">
+                    <QuickFilters
+                      onQuickFilter={handleQuickFilter}
+                      onMonthFilter={() => handleMonthFilter("this")}
+                      onPreviousMonth={() => handleMonthFilter("previous")}
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-5">
@@ -232,14 +313,24 @@ export default function EnquirySearchFilters({
                 </div>
               </div>
 
-              <div className="p-4 border-t border-gray-100 bg-white">
-                <button
-                  onClick={handleApply}
-                  disabled={!modalStartDate || !modalEndDate}
-                  className="w-full py-3.5 bg-[#6600FF] text-white rounded-lg hover:bg-[#5500DD] transition-colors font-medium text-base disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Apply
-                </button>
+              <div className="p-4 pb-safe border-t border-gray-100 bg-white">
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={handleReset}
+                    className="flex-1 py-3.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 active:bg-gray-300 transition-colors font-medium text-base"
+                  >
+                    Clear
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleApply}
+                    disabled={!modalStartDate || !modalEndDate}
+                    className="flex-[2] py-3.5 bg-[#6600FF] text-white rounded-lg hover:bg-[#5500DD] active:bg-[#4400CC] transition-colors font-medium text-base disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Apply
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -321,7 +412,7 @@ const QuickFilters = ({
   onQuickFilter,
   onMonthFilter,
   onPreviousMonth,
-}: any) => (
+}: QuickFiltersProps) => (
   <div className="flex flex-wrap gap-2">
     {[
       { label: "Today", action: () => onQuickFilter(0) },
@@ -343,7 +434,7 @@ const QuickFilters = ({
   </div>
 );
 
-const DateInput = ({ label, isMobile = false, ...props }: any) => (
+const DateInput = ({ label, isMobile = false, ...props }: DateInputProps) => (
   <div className="relative">
     <label className="block text-sm text-gray-700 mb-2 font-medium">
       {label}
@@ -385,7 +476,7 @@ const styles = `
   width: 100%;
 }
 .react-datepicker-popper {
-  z-index: 200 !important;
+  z-index: 10000 !important;
 }
 .react-datepicker {
   font-family: inherit !important;

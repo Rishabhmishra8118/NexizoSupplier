@@ -103,6 +103,28 @@ const apiList = {
       throw error;
     }
   },
+  async downloadEnquiryReport(
+    organizationId: string,
+    partnerId: string,
+    enquiryIds: string[]
+  ) {
+    try {
+      const response = await apiClient.post(
+        `/api/v1/partner/enquiry/downloadReport/${organizationId}/${partnerId}`,
+        { enquiryIds },
+        {
+          headers: {
+            accept: "*/*",
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Error downloading enquiry report:", error);
+      throw error;
+    }
+  },
 
   async enquiryBulkAction(
     organizationId: string,
