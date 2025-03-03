@@ -52,10 +52,30 @@ export default function EnquiryDetails() {
     }
   };
 
+  const updateEnquiryStatus = async (status: string) => {
+    if (!salesEnquiryId) return;
+
+    try {
+      await apiList.updateEnquiryStatus("714361434540086498", salesEnquiryId, status, "");
+      fetchEnquiry(salesEnquiryId);
+    } catch (error) {
+      console.error("Error updating enquiry status:", error);
+    }
+
   // Check if the enquiry status is "ACCEPTED"
   const isEnquiryAccepted = () => {
     if (!enquiry) return false;
     return enquiry.enquiryStatus === "ACCEPTED";
+  };
+
+  const handleAccept = () => {
+    // Handle accept logic here
+    console.log("Accepted");
+  };
+
+  const handleReject = () => {
+    // Handle reject logic here
+    console.log("Rejected");
   };
 
   if (isLoading) {
@@ -70,7 +90,11 @@ export default function EnquiryDetails() {
     <div className="background">
       <Box className="max-w-7xl mx-auto p-3">
         <EnquiryHeader />
-        <EnquiryInfoCard enquiry={enquiry} />
+        <EnquiryInfoCard
+          enquiry={enquiry}
+          onAccept={handleAccept}
+          onReject={handleReject}
+        />
 
         {/* Conditional rendering for Quotation details */}
         {enquiry.buyerQuoteDto && (

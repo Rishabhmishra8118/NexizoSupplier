@@ -1,13 +1,28 @@
-import { Box, Badge, Card, DataList, Flex, Text } from "@radix-ui/themes";
-import { MapPin } from "lucide-react";
+import {
+  Box,
+  Badge,
+  Card,
+  DataList,
+  Flex,
+  Text,
+  Separator,
+  Button,
+} from "@radix-ui/themes";
+import { Check, MapPin, X } from "lucide-react";
 import { formatTimestamp, timeAgo } from "../../utils/Commons";
 import { Enquiry } from "../../types/enquiry";
 
 interface EnquiryInfoCardProps {
   enquiry: Enquiry;
+  onAccept: (id: string) => void;
+  onReject: (id: string) => void;
 }
 
-const EnquiryInfoCard = ({ enquiry }: EnquiryInfoCardProps) => {
+const EnquiryInfoCard = ({
+  enquiry,
+  onAccept,
+  onReject,
+}: EnquiryInfoCardProps) => {
   // Get the first line item (since there's always a single item)
   const lineItem = enquiry.lineItemDtoList?.[0];
 
@@ -120,6 +135,37 @@ const EnquiryInfoCard = ({ enquiry }: EnquiryInfoCardProps) => {
           </DataList.Root>
         )}
       </Flex>
+
+      {enquiry.enquiryStatus === "PENDING" && (
+        <>
+          <div className="w-full grid grid-cols-2 gap-4 mt-4 md:mt-0 px-4 md:absolute md:top-4 md:right-4 md:w-auto md:flex md:flex-row">
+            <Button
+              size="2"
+              onClick={(e) => {
+                e.stopPropagation();
+                onReject(enquiry.salesEnquiryId);
+              }}
+              variant="outline"
+              className="w-full md:w-[120px]"
+              aria-label="Reject enquiry"
+            >
+              <X /> Reject
+            </Button>
+            <Button
+              onClick={(e) => {
+                e.stopPropagation();
+                onAccept(enquiry.salesEnquiryId);
+              }}
+              variant="solid"
+              size="2"
+              className="w-full md:w-[120px]"
+              aria-label="Accept enquiry"
+            >
+              <Check /> Accept
+            </Button>
+          </div>
+        </>
+      )}
     </Card>
   );
 };
