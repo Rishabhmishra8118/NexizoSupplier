@@ -56,22 +56,33 @@ export default function EnquirySearchFilters({
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const datePickerRef = useRef<HTMLDivElement>(null);
 
-  // Handle click outside for desktop view only
+  // Handle body scroll lock for mobile
   useEffect(() => {
-    const isMobile = window.innerWidth < 640; // sm breakpoint
-    if (isMobile) return; // Don't add click outside handler for mobile
+    if (isDatePickerOpen) {
+      // Lock scrolling on mobile
+      const originalStyle = window.getComputedStyle(document.body).overflow;
+      document.body.style.overflow = "hidden";
 
+      return () => {
+        // Restore scrolling when component unmounts or modal closes
+        document.body.style.overflow = originalStyle;
+      };
+    }
+  }, [isDatePickerOpen]);
+
+  // Handle click outside for desktop view
+  useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      // Don't close if clicking inside a date picker popup
-      if (
+      // Check if clicking on date picker elements
+      const isDatePickerElement =
         event.target instanceof Element &&
         (event.target.closest(".react-datepicker") ||
           event.target.closest(".react-datepicker-wrapper") ||
-          event.target.closest(".react-datepicker-popper"))
-      ) {
-        return;
-      }
+          event.target.closest(".react-datepicker-popper"));
 
+      if (isDatePickerElement) return;
+
+      // Close if clicking outside the date picker modal
       if (
         datePickerRef.current &&
         !datePickerRef.current.contains(event.target as Node)
@@ -111,39 +122,20 @@ export default function EnquirySearchFilters({
       return;
     }
 
-    // First update the local state
+    // Update both local and parent state
     setAppliedStartDate(modalStartDate);
     setAppliedEndDate(modalEndDate);
-
-    // Then close the modal
+    onDateRangeChange(modalStartDate, modalEndDate);
     setIsDatePickerOpen(false);
-
-    // Finally trigger the parent callback after a short delay
-    // This ensures the modal closing animation completes first
-    requestAnimationFrame(() => {
-      onDateRangeChange(modalStartDate, modalEndDate);
-    });
   };
 
   const handleQuickFilter = (days: number) => {
     const end = new Date();
     const start = dayjs().subtract(days, "day").toDate();
 
-    // Update modal dates first
+    // Update modal dates
     setModalStartDate(start);
     setModalEndDate(end);
-
-    // Update applied dates
-    setAppliedStartDate(start);
-    setAppliedEndDate(end);
-
-    // Close the modal
-    setIsDatePickerOpen(false);
-
-    // Trigger the parent callback after modal closes
-    requestAnimationFrame(() => {
-      onDateRangeChange(start, end);
-    });
   };
 
   const handleMonthFilter = (type: "this" | "previous") => {
@@ -169,25 +161,21 @@ export default function EnquirySearchFilters({
     setAppliedEndDate(null);
     setModalStartDate(null);
     setModalEndDate(null);
-
-    // Trigger the parent callback
     onDateRangeChange(null, null);
 
-    // Close modal after state updates
-    setTimeout(() => {
+    if (isDatePickerOpen) {
       setIsDatePickerOpen(false);
-    }, 0);
-  };
-
-  const handleOpenDatePicker = () => {
-    handleOpenModal();
+    }
   };
 
   return (
     <div className="w-full">
+      {/* DatePicker Styles */}
+      <DatePickerStyles />
+
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         {/* Search Bar */}
-        <div className="m-3 w-full sm:w-[400px] relative">
+        <div className="p-3 w-full sm:w-[400px] relative">
           <div className="flex items-center rounded-full border border-gray-200 bg-white pr-1">
             <input
               className="flex-1 border-none outline-none bg-transparent px-4 py-2 rounded-l-full text-sm placeholder-gray-400"
@@ -195,11 +183,13 @@ export default function EnquirySearchFilters({
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && onSearch()}
+              aria-label="Search companies"
             />
             <button
               onClick={onSearch}
               className="p-2 bg-[#FF6644] rounded-full hover:bg-[#E65532] transition-colors"
               aria-label="Search"
+              type="button"
             >
               <Search className="w-4 h-4 text-white" />
             </button>
@@ -208,18 +198,17 @@ export default function EnquirySearchFilters({
 
         {/* Filter Buttons */}
         <div className="flex justify-center sm:justify-end gap-2 sm:gap-3">
-          <Button variant="outline" className="gap-1 bg-white  font-medium">
+          <Button variant="outline" className="gap-1 bg-white font-medium">
             Products <ChevronDown className="w-3 h-3" />
           </Button>
-          {/* <Button variant="outline" className="gap-1 font-medium">
-            Assigned <ChevronDown className="w-3 h-3" />
-          </Button> */}
           <Button
             variant="outline"
-            onClick={handleOpenDatePicker}
+            onClick={handleOpenModal}
             className={`gap-2 font-medium min-w-[140px] ${
               appliedStartDate && appliedEndDate ? "bg-purple-50" : ""
             }`}
+            aria-haspopup="dialog"
+            aria-expanded={isDatePickerOpen}
           >
             {appliedStartDate && appliedEndDate ? (
               <>
@@ -227,13 +216,17 @@ export default function EnquirySearchFilters({
                   {dayjs(appliedStartDate).format("DD MMM YYYY")} -{" "}
                   {dayjs(appliedEndDate).format("DD MMM YYYY")}
                 </span>
-                <X
-                  className="w-3.5 h-3.5 text-gray-500 hover:text-gray-700"
+                <button
+                  className="flex items-center justify-center"
                   onClick={(e) => {
                     e.stopPropagation();
                     handleReset();
                   }}
-                />
+                  aria-label="Clear date filter"
+                  type="button"
+                >
+                  <X className="w-3.5 h-3.5 text-gray-500 hover:text-gray-700" />
+                </button>
               </>
             ) : (
               <>
@@ -249,29 +242,15 @@ export default function EnquirySearchFilters({
       {isDatePickerOpen && (
         <>
           {/* Mobile Overlay */}
-          <div
-            className="sm:hidden fixed inset-0 bg-black/30 z-[9998]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div
-              className="fixed inset-0 bg-white z-[9999] flex flex-col overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <style jsx global>{`
-                body {
-                  overflow: hidden;
-                }
-              `}</style>
+          <div className="sm:hidden fixed inset-0 bg-black/30 z-50">
+            <div className="fixed inset-0 bg-white z-50 flex flex-col overflow-hidden">
               <div className="p-4 border-b border-gray-100 bg-white">
                 <div className="flex items-center justify-between">
                   <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setIsDatePickerOpen(false);
-                    }}
+                    onClick={() => setIsDatePickerOpen(false)}
                     className="text-gray-600 flex items-center gap-1"
+                    aria-label="Close date picker"
+                    type="button"
                   >
                     <X className="w-5 h-5" />
                     <span className="font-medium">Close</span>
@@ -283,7 +262,7 @@ export default function EnquirySearchFilters({
                 </div>
               </div>
 
-              <div className="flex-1 p-4 overflow-y-auto pb-safe">
+              <div className="flex-1 p-4 overflow-y-auto pb-[env(safe-area-inset-bottom,16px)]">
                 <div className="mb-6 -mx-1">
                   <div className="overflow-x-auto py-1 px-1">
                     <QuickFilters
@@ -301,6 +280,7 @@ export default function EnquirySearchFilters({
                     onChange={(date: Date) => setModalStartDate(date)}
                     maxDate={modalEndDate || undefined}
                     isMobile={true}
+                    aria-label="Start date"
                   />
                   <DateInput
                     label="To"
@@ -309,16 +289,18 @@ export default function EnquirySearchFilters({
                     minDate={modalStartDate || undefined}
                     maxDate={new Date()}
                     isMobile={true}
+                    aria-label="End date"
                   />
                 </div>
               </div>
 
-              <div className="p-4 pb-safe border-t border-gray-100 bg-white">
+              <div className="p-4 border-t border-gray-100 bg-white pb-[env(safe-area-inset-bottom,16px)]">
                 <div className="flex gap-3">
                   <button
                     type="button"
                     onClick={handleReset}
-                    className="flex-1 py-3.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 active:bg-gray-300 transition-colors font-medium text-base"
+                    className="flex-1 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 active:bg-gray-300 transition-colors font-medium text-base"
+                    aria-label="Clear dates"
                   >
                     Clear
                   </button>
@@ -326,7 +308,8 @@ export default function EnquirySearchFilters({
                     type="button"
                     onClick={handleApply}
                     disabled={!modalStartDate || !modalEndDate}
-                    className="flex-[2] py-3.5 bg-[#6600FF] text-white rounded-lg hover:bg-[#5500DD] active:bg-[#4400CC] transition-colors font-medium text-base disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-[2] py-3 bg-[#6600FF] text-white rounded-lg hover:bg-[#5500DD] active:bg-[#4400CC] transition-colors font-medium text-base disabled:opacity-50 disabled:cursor-not-allowed"
+                    aria-disabled={!modalStartDate || !modalEndDate}
                   >
                     Apply
                   </button>
@@ -336,10 +319,13 @@ export default function EnquirySearchFilters({
           </div>
 
           {/* Desktop Popup */}
-          <div className="hidden sm:block relative">
+          <div className="hidden sm:block">
             <div
               ref={datePickerRef}
-              className="absolute right-0 mt-2 bg-white rounded-xl shadow-xl w-[480px] z-50 border border-gray-100"
+              className="absolute right-0 mt-2 bg-white rounded-xl shadow-xl w-full max-w-[480px] z-50 border border-gray-100"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Date range picker"
             >
               <div className="p-4">
                 <div className="flex justify-between items-center mb-4">
@@ -349,6 +335,8 @@ export default function EnquirySearchFilters({
                   <button
                     onClick={() => setIsDatePickerOpen(false)}
                     className="text-gray-500 hover:text-gray-700"
+                    aria-label="Close date picker"
+                    type="button"
                   >
                     <X className="w-5 h-5" />
                   </button>
@@ -366,6 +354,7 @@ export default function EnquirySearchFilters({
                     selected={modalStartDate}
                     onChange={(date: Date) => setModalStartDate(date)}
                     maxDate={modalEndDate || undefined}
+                    aria-label="Start date"
                   />
                   <DateInput
                     label="To"
@@ -373,6 +362,7 @@ export default function EnquirySearchFilters({
                     onChange={(date: Date) => setModalEndDate(date)}
                     minDate={modalStartDate || undefined}
                     maxDate={new Date()}
+                    aria-label="End date"
                   />
                 </div>
 
@@ -380,6 +370,7 @@ export default function EnquirySearchFilters({
                   <button
                     onClick={handleReset}
                     className="text-sm text-gray-600 hover:text-gray-900 px-3 py-1.5 rounded-lg"
+                    type="button"
                   >
                     Clear Dates
                   </button>
@@ -387,6 +378,7 @@ export default function EnquirySearchFilters({
                     <button
                       onClick={handleCloseModal}
                       className="px-4 py-2 text-sm text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg"
+                      type="button"
                     >
                       Cancel
                     </button>
@@ -394,6 +386,8 @@ export default function EnquirySearchFilters({
                       onClick={handleApply}
                       disabled={!modalStartDate || !modalEndDate}
                       className="px-4 py-2 text-sm text-white bg-[#6600FF] hover:bg-[#5500DD] rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                      type="button"
+                      aria-disabled={!modalStartDate || !modalEndDate}
                     >
                       Apply
                     </button>
@@ -427,6 +421,7 @@ const QuickFilters = ({
         key={filter.label}
         onClick={filter.action}
         className="px-4 py-2 text-sm rounded-full border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 transition-colors whitespace-nowrap"
+        type="button"
       >
         {filter.label}
       </button>
@@ -442,7 +437,7 @@ const DateInput = ({ label, isMobile = false, ...props }: DateInputProps) => (
     <div className="relative flex items-center">
       <DatePicker
         className={`w-full text-[15px] border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
-          isMobile ? "h-[52px] pl-4 pr-12" : "h-10 px-3"
+          isMobile ? "p-4 pr-12" : "h-10 px-3"
         }`}
         dateFormat="dd MMM yyyy"
         placeholderText="Select date"
@@ -454,6 +449,12 @@ const DateInput = ({ label, isMobile = false, ...props }: DateInputProps) => (
               padding: 16,
             },
           },
+          {
+            name: "flip",
+            options: {
+              fallbackPlacements: ["top"],
+            },
+          },
         ]}
         popperPlacement="bottom-start"
         {...props}
@@ -462,6 +463,7 @@ const DateInput = ({ label, isMobile = false, ...props }: DateInputProps) => (
         className={`absolute pointer-events-none ${
           isMobile ? "right-4" : "right-3"
         }`}
+        aria-hidden="true"
       >
         <Calendar
           className={`text-gray-400 ${isMobile ? "w-6 h-6" : "w-4 h-4"}`}
@@ -471,82 +473,87 @@ const DateInput = ({ label, isMobile = false, ...props }: DateInputProps) => (
   </div>
 );
 
-const styles = `
-.react-datepicker-wrapper {
-  width: 100%;
-}
-.react-datepicker-popper {
-  z-index: 10000 !important;
-}
-.react-datepicker {
-  font-family: inherit !important;
-  border-color: #E5E7EB !important;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
-  border-radius: 0.5rem !important;
-}
-.react-datepicker__header {
-  background: white !important;
-  border-bottom: 1px solid #E5E7EB !important;
-  padding-top: 1rem !important;
-  border-top-left-radius: 0.5rem !important;
-  border-top-right-radius: 0.5rem !important;
-}
-.react-datepicker__current-month {
-  font-size: 1rem !important;
-  font-weight: 600 !important;
-  color: #111827 !important;
-}
-.react-datepicker__day-name {
-  color: #6B7280 !important;
-  font-weight: 500 !important;
-  width: 2.5rem !important;
-  line-height: 2.5rem !important;
-  margin: 0.2rem !important;
-}
-.react-datepicker__day {
-  width: 2.5rem !important;
-  line-height: 2.5rem !important;
-  margin: 0.2rem !important;
-  border-radius: 9999px !important;
-  color: #374151 !important;
-}
-.react-datepicker__day:hover {
-  background-color: #F3F4F6 !important;
-}
-.react-datepicker__day--selected {
-  background-color: #6600FF !important;
-  color: white !important;
-}
-.react-datepicker__day--keyboard-selected {
-  background-color: #6600FF !important;
-  color: white !important;
-}
-.react-datepicker__day--disabled {
-  color: #D1D5DB !important;
-}
-.react-datepicker__navigation {
-  top: 1rem !important;
-}
-.react-datepicker__navigation--previous {
-  left: 1rem !important;
-}
-.react-datepicker__navigation--next {
-  right: 1rem !important;
-}
-@media (max-width: 640px) {
-  .react-datepicker__day-name,
-  .react-datepicker__day {
-    width: 2.25rem !important;
-    line-height: 2.25rem !important;
-    margin: 0.2rem !important;
-    font-size: 0.875rem !important;
-  }
-  .react-datepicker__current-month {
-    font-size: 1rem !important;
-  }
-}
-`;
-
-const styleSheet = document.createElement("style");
-styleSheet.innerText = styles;
-document.head.appendChild(styleSheet);
+// Encapsulate DatePicker styles in a React component
+const DatePickerStyles = () => (
+  <style jsx global>{`
+    .react-datepicker-wrapper {
+      width: 100%;
+    }
+    .react-datepicker-popper {
+      z-index: 60 !important;
+    }
+    .react-datepicker {
+      font-family: inherit !important;
+      border-color: #e5e7eb !important;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+        0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+      border-radius: 0.5rem !important;
+    }
+    .react-datepicker__header {
+      background: white !important;
+      border-bottom: 1px solid #e5e7eb !important;
+      padding-top: 1rem !important;
+      border-top-left-radius: 0.5rem !important;
+      border-top-right-radius: 0.5rem !important;
+    }
+    .react-datepicker__current-month {
+      font-size: 1rem !important;
+      font-weight: 600 !important;
+      color: #111827 !important;
+    }
+    .react-datepicker__day-name {
+      color: #6b7280 !important;
+      font-weight: 500 !important;
+      width: 2.5rem !important;
+      line-height: 2.5rem !important;
+      margin: 0.2rem !important;
+    }
+    .react-datepicker__day {
+      width: 2.5rem !important;
+      line-height: 2.5rem !important;
+      margin: 0.2rem !important;
+      border-radius: 9999px !important;
+      color: #374151 !important;
+    }
+    .react-datepicker__day:hover {
+      background-color: #f3f4f6 !important;
+    }
+    .react-datepicker__day--selected {
+      background-color: #6600ff !important;
+      color: white !important;
+    }
+    .react-datepicker__day--keyboard-selected {
+      background-color: #6600ff !important;
+      color: white !important;
+    }
+    .react-datepicker__day--in-selecting-range,
+    .react-datepicker__day--in-range {
+      background-color: rgba(102, 0, 255, 0.1) !important;
+      color: #374151 !important;
+    }
+    .react-datepicker__day--disabled {
+      color: #d1d5db !important;
+    }
+    .react-datepicker__navigation {
+      top: 1rem !important;
+    }
+    .react-datepicker__navigation--previous {
+      left: 1rem !important;
+    }
+    .react-datepicker__navigation--next {
+      right: 1rem !important;
+    }
+    @media (max-width: 640px) {
+      .react-datepicker__day-name,
+      .react-datepicker__day {
+        width: 2.25rem !important;
+        line-height: 2.25rem !important;
+        margin: 0.2rem !important;
+        font-size: 0.875rem !important;
+      }
+      .react-datepicker__current-month {
+        font-size: 1rem !important;
+      }
+    }
+  `}</style>
+);

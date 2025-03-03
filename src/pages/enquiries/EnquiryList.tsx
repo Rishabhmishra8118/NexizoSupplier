@@ -2,7 +2,6 @@ import {
   Box,
   Flex,
   Button,
-  IconButton,
   Text,
   TextField,
   Checkbox,
@@ -369,6 +368,8 @@ export default function EnquiryList() {
   //create bulk acton component
 
   const renderBulkActions = () => {
+    console.log(selectedStatus);
+
     switch (selectedStatus) {
       case "PENDING":
         return (
@@ -674,7 +675,7 @@ export default function EnquiryList() {
                 <Text as="label" size="2" my="4" weight="bold">
                   Select Reason *
                 </Text>
-                <div className="mt-2">
+                <div>
                   <DropdownMenu.Root>
                     <DropdownMenu.Trigger>
                       <Button variant="soft" className="w-full justify-between">
@@ -710,45 +711,26 @@ export default function EnquiryList() {
               <Button
                 variant="solid"
                 onClick={async () => {
-                  if (selectedAction === "ASSIGNED") {
-                    if (!selectedEmployee) {
-                      toast.error("Please select an employee");
-                      return;
-                    }
-
-                    console.log(selectedEmployee);
-
-                    await handleBulkStatusChange(
-                      selectedEmployee,
-                      selectedAction,
-                      remark
-                    );
+                  if (selectedAction === "ASSIGNED" && !selectedEmployee) {
+                    toast.error("Please select an employee");
+                    return;
                   }
 
-                  if (selectedAction) {
-                    if (selectedAction === "REJECTED" && !rejectionReason) {
-                      toast.error("Please select a rejection reason");
-                      return;
-                    }
-
-                    if (selectedAction !== "ASSIGNED") {
-                      await handleBulkStatusChange(
-                        null,
-                        selectedAction,
-                        selectedAction === "REJECTED" ? rejectionReason : remark
-                      );
-                    } else {
-                      await handleBulkStatusChange(
-                        selectedEmployee,
-                        selectedAction,
-                        remark
-                      );
-                    }
-                    setIsDialogOpen(false);
-                    setRejectionReason("");
-                    setRemark("");
-                    setSelectedEmployee(null);
+                  if (selectedAction === "REJECTED" && !rejectionReason) {
+                    toast.error("Please select a rejection reason");
+                    return;
                   }
+
+                  await handleBulkStatusChange(
+                    selectedAction === "ASSIGNED" ? selectedEmployee : null,
+                    selectedAction,
+                    selectedAction === "REJECTED" ? rejectionReason : remark
+                  );
+
+                  setIsDialogOpen(false);
+                  setRejectionReason("");
+                  setRemark("");
+                  setSelectedEmployee(null);
                 }}
               >
                 Confirm

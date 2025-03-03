@@ -50,7 +50,7 @@
 
   --colors-text: #333;
   --colors-background: #fff;
-  --colors-primary: #007bff;
+  --colors-primary: #6600ff;
   --colors-secondary: #000000;
   --colors-muted: #6c757d;
   --colors-accent: #007bff;
@@ -86,7 +86,7 @@
 .page-item.active {
   font-weight: bold;
   color: #ffffff; /* Text color for active page */
-  background-color: #007bff; /* Background color for active page */
+  background-color: #6600ff; /* Background color for active page */
   /* Rounded corners for active page */
   /* Padding for active page */
 }
@@ -96,7 +96,7 @@
   display: block;
   padding: 5px 10px;
   text-decoration: none;
-  color: #007bff; /* Text color for non-active pages */
+  color: #6600ff; /* Text color for non-active pages */
   border: 1px solid #ddd; /* Border for non-active pages */
   /* Rounded corners for non-active pages */
   transition: background-color 0.3s, color 0.3s; /* Smooth transition */
@@ -111,6 +111,6 @@
 /* Active page item link */
 .page-item.active a {
   color: #ffffff; /* Text color for active page */
-  background-color: #007bff; /* Background color for active page */
-  border-color: #007bff; /* Border color for active page */
+  background-color: #6600ff; /* Background color for active page */
+  border-color: #6600ff; /* Border color for active page */
 }

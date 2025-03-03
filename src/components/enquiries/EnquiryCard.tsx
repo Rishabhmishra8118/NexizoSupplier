@@ -9,7 +9,7 @@ import {
   Separator,
   DataList,
 } from "@radix-ui/themes";
-import { X, UserPlus } from "lucide-react";
+import { X, UserPlus, Check } from "lucide-react";
 import { formatTimestamp, timeAgo } from "../../utils/Commons";
 
 interface LineItem {
@@ -35,6 +35,7 @@ interface Enquiry {
   enquiryStatus: string;
   dateCreated: string;
   expDeliveryDate: string;
+  statusDisplayValue: string;
   lineItemDtoList: LineItem[];
   pocInfo?: PocInfo;
 }
@@ -80,10 +81,10 @@ const EnquiryCard: React.FC<EnquiryCardProps> = ({
           </Flex>
           <Flex gap="2" wrap="wrap">
             <Badge color="orange" radius="full">
-              Status: {enquiry.enquiryStatus}
+              {timeAgo(enquiry.dateCreated)}
             </Badge>
             <Badge color="orange" radius="full">
-              {timeAgo(enquiry.dateCreated)}
+              {enquiry.statusDisplayValue}
             </Badge>
             {enquiry.pocInfo && (
               <Badge color="orange" radius="full">
@@ -97,7 +98,7 @@ const EnquiryCard: React.FC<EnquiryCardProps> = ({
         </Box>
       </Flex>
       <Flex direction="row" gap="6" className="flex-wrap">
-        <DataList.Root orientation="vertical" size="3">
+        <DataList.Root orientation="vertical" size="2">
           <DataList.Item>
             <DataList.Label minWidth="88px">Exp Delivery Date</DataList.Label>
             <DataList.Value>
@@ -105,7 +106,7 @@ const EnquiryCard: React.FC<EnquiryCardProps> = ({
             </DataList.Value>
           </DataList.Item>
         </DataList.Root>
-        <DataList.Root orientation="vertical" size="3">
+        <DataList.Root orientation="vertical" size="2">
           <DataList.Item>
             <DataList.Label minWidth="88px">Quantity</DataList.Label>
             <DataList.Value>
@@ -117,7 +118,7 @@ const EnquiryCard: React.FC<EnquiryCardProps> = ({
             </DataList.Value>
           </DataList.Item>
         </DataList.Root>
-        <DataList.Root orientation="vertical" size="3">
+        <DataList.Root orientation="vertical" size="2">
           <DataList.Item>
             <DataList.Label minWidth="88px">Product</DataList.Label>
             <DataList.Value>
@@ -158,7 +159,7 @@ const EnquiryCard: React.FC<EnquiryCardProps> = ({
               className="w-full md:w-[120px]"
               aria-label="Accept enquiry"
             >
-              <UserPlus /> Accept
+              <Check /> Accept
             </Button>
           </div>
         </>
